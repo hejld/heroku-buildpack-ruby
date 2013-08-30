@@ -1,192 +1,108 @@
-Heroku buildpack: Ruby
-======================
+# Turbo Sprockets for Rails 3.2.x
 
-This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) for Ruby, Rack, and Rails apps. It uses [Bundler](http://gembundler.com) for dependency management.
+[![Build Status](https://secure.travis-ci.org/ndbroadbent/turbo-sprockets-rails3.png)](http://travis-ci.org/ndbroadbent/turbo-sprockets-rails3)
 
-Usage
------
+* Speeds up your Rails 3 `rake assets:precompile` by only recompiling changed assets, based on a hash of their source files
+* Only compiles once to generate both fingerprinted and non-fingerprinted assets
 
-### Ruby
 
-Example Usage:
+### Disclaimer
 
-    $ ls
-    Gemfile Gemfile.lock
+`turbo-sprockets-rails3` can now be considered relatively stable. A lot of compatibility issues and bugs have been solved, so you shouldn't run into any problems.
+However, please do test it out on your local machine before deploying to a production site, and open an issue on GitHub if you have any problems. By using this software you agree to the terms and conditions in the [MIT license](https://github.com/ndbroadbent/turbo-sprockets-rails3/blob/master/MIT-LICENSE).
 
-    $ heroku create --stack cedar --buildpack https://github.com/heroku/heroku-buildpack-ruby.git
 
-    $ git push heroku master
-    ...
-    -----> Heroku receiving push
-    -----> Fetching custom buildpack
-    -----> Ruby app detected
-    -----> Installing dependencies using Bundler version 1.1.rc
-           Running: bundle install --without development:test --path vendor/bundle --deployment
-           Fetching gem metadata from http://rubygems.org/..
-           Installing rack (1.3.5)
-           Using bundler (1.1.rc)
-           Your bundle is complete! It was installed into ./vendor/bundle
-           Cleaning up the bundler cache.
-    -----> Discovering process types
-           Procfile declares types -> (none)
-           Default types for Ruby  -> console, rake
+## Usage
 
-The buildpack will detect your app as Ruby if it has a `Gemfile` and `Gemfile.lock` files in the root directory. It will then proceed to run `bundle install` after setting up the appropriate environment for [ruby](http://ruby-lang.org) and [Bundler](http://gembundler.com).
+Just drop the gem in your `Gemfile`, under the `:assets` group:
 
-#### Run the Tests
-
-The tests on this buildpack are written in Rspec to allow the use of
-`focused: true`. Parallelization of testing is provided by
-https://github.com/grosser/parallel_tests this lib spins up an arbitrary
-number of processes and running a different test file in each process,
-it does not parallelize tests within a test file. To run the tests: clone the repo, then `bundle install` then clone the test fixtures by running:
-
-```sh
-$ hatchet install
+```ruby
+group :assets do
+  ...
+  gem 'turbo-sprockets-rails3'
+end
 ```
 
-Now run the tests:
+Run `bundle` to install the gem, and you're done!
 
-```sh
-$ bundle exec parallel_rspec -n 6 spec/
+Test it out by running `rake assets:precompile`. When it's finished, you should see a new file at `public/assets/sources_manifest.yml`, which includes the source fingerprints for your assets.
+
+Go on, run `rake assets:precompile` again, and it should be a whole lot faster than before.
+
+Enjoy your lightning fast deploys!
+
+## Removing Expired Assets
+
+`turbo-sprockets-rails3` provides a Rake task called `assets:clean_expired`. You can run this task after `assets:precompile` to remove outdated assets.
+
+An asset will be deleted if it is no longer referenced by `manifest.yml`, and hasn't been actively deployed for more than a day (default).
+
+You can configure the expiry time by setting `config.assets.expire_after` in `config/environments/production.rb`.
+An expiry time of 2 weeks could be configured with the following code:
+
+```ruby
+config.assets.expire_after 2.weeks
 ```
 
-If you don't want to run them in parallel you can still:
+## Versioning
 
-```sh
-$ bundle exec rake spec
+The gem needs to support multiple changes to Rails and sprockets, so the following versioning is used:
+
+* Rails 3.2.0 to 3.2.8 uses `turbo-sprockets-rails3` `0.2.x`
+* Rails 3.2.9 and higher uses `turbo-sprockets-rails3` `0.3.x`
+
+
+## Compatibility
+
+### [asset_sync](https://github.com/rumblelabs/asset_sync)
+
+Fully compatible.
+
+### [wicked_pdf](https://github.com/mileszs/wicked_pdf)
+
+Fully compatible starting from version `0.8.0`.
+
+```ruby
+gem 'wicked_pdf', '>= 0.8.0'
 ```
 
-Now go take a nap or something for a really long time.
+<hr/>
 
-#### Bundler
+Please let me know if you have any problems with other gems, and I will either fix it, or make a note of the problem here.
 
-For non-windows `Gemfile.lock` files, the `--deployment` flag will be used. In the case of windows, the Gemfile.lock will be deleted and Bundler will do a full resolve so native gems are handled properly. The `vendor/bundle` directory is cached between builds to allow for faster `bundle install` times. `bundle clean` is used to ensure no stale gems are stored between builds.
+## Deployments
 
-### Rails 2
+### Capistrano
 
-Example Usage:
+`turbo-sprockets-rails3` should work out of the box with the latest version of Capistrano.
 
-    $ ls
-    app  config  db  doc  Gemfile  Gemfile.lock  lib  log  public  Rakefile  README  script  test  tmp  vendor
+### Heroku
 
-    $ ls config/environment.rb
-    config/environment.rb
+I've created a Heroku Buildpack for `turbo-sprockets-rails3` that keeps your assets cached between deploys, so you only need to recompile changed assets. It will automatically expire old assets that are no longer referenced by `manifest.yml` after 7 days, so your `public/assets` folder won't grow out of control.
 
-    $ heroku create --stack cedar --buildpack https://github.com/heroku/heroku-buildpack-ruby.git
+To create a new application on Heroku using this buildpack, you can run:
 
-    $ git push heroku master
-    ...
-    -----> Heroku receiving push
-    -----> Ruby/Rails app detected
-    -----> Installing dependencies using Bundler version 1.1.rc
-    ...
-    -----> Writing config/database.yml to read from DATABASE_URL
-    -----> Rails plugin injection
-           Injecting rails_log_stdout
-    -----> Discovering process types
-           Procfile declares types      -> (none)
-           Default types for Ruby/Rails -> console, rake, web, worker
+```bash
+heroku create --buildpack https://github.com/ndbroadbent/heroku-buildpack-turbo-sprockets.git
+```
 
-The buildpack will detect your app as a Rails 2 app if it has a `environment.rb` file in the `config`  directory.
+To add the buildpack to an existing app, you can run:
 
-#### Rails Log STDOUT
-  A [rails_log_stdout](http://github.com/ddollar/rails_log_stdout) is installed by default so Rails' logger will log to STDOUT and picked up by Heroku's [logplex](http://github.com/heroku/logplex).
+```bash
+heroku config:add BUILDPACK_URL=https://github.com/ndbroadbent/heroku-buildpack-turbo-sprockets.git
+```
 
-#### Auto Injecting Plugins
+#### Compiling Assets on Your Local Machine
 
-Any vendored plugin can be stopped from being installed by creating the directory it's installed to in the slug. For instance, to prevent rails_log_stdout plugin from being injected, add `vendor/plugins/rails_log_stdout/.gitkeep` to your git repo.
+You can also compile assets on your local machine, and commit the compiled assets. You might want to do this if your local machine is a lot faster than the Heroku VM, or if you also want to generate other files, such as static pages. When you push compiled assets to Heroku, it will automatically skip the `assets:precompile` task.
 
-### Rails 3
+I've automated this process in a Rake task for my own projects. The task creates a deployment repo at `tmp/heroku_deploy` so that you can keep working while deploying, and it also rebases and amends the assets commit to keep your repo's history from growing out of control. You can find the deploy task in a gist at https://gist.github.com/3802355. Save this file to `lib/tasks/deploy.rake`, and make sure you have added a `heroku` remote to your repo. You will now be able to run `rake deploy` to deploy your app to Heroku.
 
-Example Usage:
+## Debugging
 
-    $ ls
-    app  config  config.ru  db  doc  Gemfile  Gemfile.lock  lib  log  Procfile  public  Rakefile  README  script  tmp  vendor
+If you would like to view debugging information in your terminal during the `assets:precompile` task, add the following lines to the bottom of `config/environments/production.rb`:
 
-    $ ls config/application.rb
-    config/application.rb
-
-    $ heroku create --stack cedar --buildpack https://github.com/heroku/heroku-buildpack-ruby.git
-
-    $ git push heroku master
-    -----> Heroku receiving push
-    -----> Ruby/Rails app detected
-    -----> Installing dependencies using Bundler version 1.1.rc
-           Running: bundle install --without development:test --path vendor/bundle --deployment
-           ...
-    -----> Writing config/database.yml to read from DATABASE_URL
-    -----> Preparing app for Rails asset pipeline
-           Running: rake assets:precompile
-    -----> Rails plugin injection
-           Injecting rails_log_stdout
-           Injecting rails3_serve_static_assets
-    -----> Discovering process types
-           Procfile declares types      -> web
-           Default types for Ruby/Rails -> console, rake, worker
-
-The buildpack will detect your apps as a Rails 3 app if it has an `application.rb` file in the `config` directory.
-
-#### Assets
-
-To enable static assets being served on the dyno, [rails3_serve_static_assets](http://github.com/pedro/rails3_serve_static_assets) is installed by default. If the [execjs gem](http://github.com/sstephenson/execjs) is detected then [node.js](http://github.com/joyent/node) will be vendored. The `assets:precompile` rake task will get run if no `public/manifest.yml` is detected.  See [this article](http://devcenter.heroku.com/articles/rails31_heroku_cedar) on how rails 3.1 works on cedar.
-
-Hacking
--------
-
-To use this buildpack, fork it on Github.  Push up changes to your fork, then create a test app with `--buildpack <your-github-url>` and push to it.
-
-To change the vendored binaries for Bundler, [Node.js](http://github.com/joyent/node), and rails plugins, use the rake tasks provided by the `Rakefile`. You'll need an S3-enabled AWS account and a bucket to store your binaries in as well as the [vulcan](http://github.com/heroku/vulcan) gem to build the binaries on heroku.
-
-For example, you can change the vendored version of Bundler to 1.1.rc.
-
-First you'll need to build a Heroku-compatible version of Node.js:
-
-    $ export AWS_ID=xxx AWS_SECRET=yyy S3_BUCKET=zzz
-    $ s3 create $S3_BUCKET
-    $ rake gem:install[bundler,1.1.rc]
-
-Open `lib/language_pack/ruby.rb` in your editor, and change the following line:
-
-    BUNDLER_VERSION = "1.1.rc"
-
-Open `lib/language_pack/base.rb` in your editor, and change the following line:
-
-    VENDOR_URL = "https://s3.amazonaws.com/zzz"
-
-Commit and push the changes to your buildpack to your Github fork, then push your sample app to Heroku to test.  You should see:
-
-    -----> Installing dependencies using Bundler version 1.1.rc
-
-NOTE: You'll need to vendor the plugins, node, Bundler, and libyaml by running the rake tasks for the buildpack to work properly.
-
-Flow
-----
-
-Here's the basic flow of how the buildpack works:
-
-Ruby (Gemfile and Gemfile.lock is detected)
-
-* runs Bundler
-* installs binaries
-  * installs node if the gem execjs is detected
-* runs `rake assets:precompile` if the rake task is detected
-
-Rack (config.ru is detected)
-
-* everything from Ruby
-* sets RACK_ENV=production
-
-Rails 2 (config/environment.rb is detected)
-
-* everything from Rack
-* sets RAILS_ENV=production
-* install rails 2 plugins
-  * [rails_log_stdout](http://github.com/ddollar/rails_log_stdout)
-
-Rails 3 (config/application.rb is detected)
-
-* everything from Rails 2
-* install rails 3 plugins
-  * [rails3_server_static_assets](https://github.com/pedro/rails3_serve_static_assets)
-
+```ruby
+config.log_level = :debug
+config.logger = Logger.new(STDOUT)
+```

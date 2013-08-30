@@ -3,3 +3,11 @@ repos/*
 vendor/bundler/*
 vendor/bundle/*
 .env
+.bundle/
+pkg/
+Gemfile.lock
+tmp
+.rbenv-version
+.rvmrc
+*.gem
+.idea/
