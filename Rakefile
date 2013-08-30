@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 require "fileutils"
 require "tmpdir"
 require 'hatchet/tasks'
@@ -279,28 +278,10 @@ task "jruby:install", :version, :ruby_version do |t, args|
       sh "vulcan build -v -o #{output}.tgz --prefix /app/vendor/#{output} --source #{src_folder} --command=\"#{build_command}\""
 
       s3_upload(tmpdir, output)
-=======
-#!/usr/bin/env rake
-require 'rake/testtask'
-ENV["TEST_CORES"] = "1"
-
-require 'bundler'
-Bundler::GemHelper.install_tasks
-
-namespace :test do
-  task :isolated do
-    Dir["test/assets*_test.rb"].each do |file|
-      dash_i = [
-        'test',
-        'lib',
-      ]
-      ruby "-I#{dash_i.join ':'}", file
->>>>>>> sprockets/master
     end
   end
 end
 
-<<<<<<< HEAD
 desc "build the jruby-launcher"
 task "jruby:launcher", :version do |t, args|
   version = args[:version]
@@ -376,14 +357,3 @@ begin
   task :default => :spec
 rescue LoadError => e
 end
-=======
-Rake::TestTask.new("test:regular") do |t|
-  t.libs << 'lib'
-  t.libs << 'test'
-  t.pattern = 'test/**/sprockets*_test.rb'
-  t.verbose = true
-end
-
-task :test => ['test:isolated', 'test:regular']
-task :default => :test
->>>>>>> sprockets/master
